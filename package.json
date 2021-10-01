@@ -2,7 +2,7 @@
   "name": "discordbot",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,10 +10,16 @@
   "license": "ISC",
   "dependencies": {
     "@discordjs/opus": "^0.5.3",
+    "@distube/spotify": "^0.6.3",
     "discord.js": "^12.5.1",
     "discord.js-commando": "^0.12.2",
     "distube": "^2.8.16",
-    "ffmpeg-static": "^4.4.0"
+    "ffmpeg-static": "^4.4.0",
+    "install": "^0.13.0",
+    "npm": "^7.20.6",
+    "opusscript": "0.0.8",
+    "ytpl": "^2.2.3",
+    "ytsearcher": "^1.2.4"
   },
   "devDependencies": {
     "eslint": "^7.15.0"

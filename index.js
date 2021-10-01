@@ -1,74 +1,58 @@
+const { executionAsyncResource} = require('async_hooks');
 const Discord = require('discord.js');
-const client = new Discord.Client();
-const DisTube = require('distube');
-const distube = new DisTube(client, { searchSongs: false, emitNewSongOnly: true, });
-const { token } = require('./config.json');
-const prefix = '&';
+// const Queue = require('distube/typings/Queue');
+const { resourceLimits } = require('worker_threads');
+const ytdl = require('ytdl-core')
+const fs = require('fs')
 
-client.on("ready", () => {
-    console.log(`${client.user.tag} Sudah Online`)
+const { YTSearcher } = require('ytsearcher');
+const searcher = new YTSearcher({
+    key: "AIzaSyDHxdQVGb91Ae21ZdwtddaDq-QHQQrXbBk",
+    revealed: true,
 })
 
-client.on("message", async (message) => {
-    if (message.author.bot) return;
-    if (!message.content.startsWith(prefix)) return;
-    const args = message.content.slice(prefix.length).trim().split(/ +/g);
-    const command = args.shift();
+const client = new Discord.Client();
+client.commands = new Discord.Collection();
+client.aliases = new Discord.Collection();
 
-    if (command == "play")
-        distube.play(message, args.join(" "));
-
-    if (["repeat", "loop"].includes(command))
-        distube.setRepeatMode(message, parseInt(args[0]));
-
-    if (command == "stop") {
-        distube.stop(message);
-        message.channel.send("Stopped the music!");
-    }
-
-    if (command == "skip")
-        distube.skip(message);
-
-    if (command == "queue") {
-        let queue = distube.getQueue(message);
-        message.channel.send('Current queue:\n' + queue.songs.map((song, id) =>
-            `**${id + 1}**. ${song.name} - \`${song.formattedDuration}\``
-        ).slice(0, 10).join("\n"));
-    }
-
-    if ([`3d`, `bassboost`, `echo`, `karaoke`, `nightcore`, `vaporwave`].includes(command)) {
-        let filter = distube.setFilter(message, command);
-        message.channel.send("Current queue filter: " + (filter || "Off"));
-    }
-});
-
-// Queue status template
-const status = (queue) => `Volume: \`${queue.volume}%\` | Filter: \`${queue.filter || "Off"}\` | Loop: \`${queue.repeatMode ? queue.repeatMode == 2 ? "All Queue" : "This Song" : "Off"}\` | Autoplay: \`${queue.autoplay ? "On" : "Off"}\``;
-
-// DisTube event listeners, more in the documentation page
-distube
-    .on("playSong", (message, queue, song) => message.channel.send(
-        `Playing \`${song.name}\` - \`${song.formattedDuration}\`\nRequested by: ${song.user}\n${status(queue)}`
-    ))
-    .on("addSong", (message, queue, song) => message.channel.send(
-        `Added ${song.name} - \`${song.formattedDuration}\` to the queue by ${song.user}`
-    ))
-    .on("playList", (message, queue, playlist, song) => message.channel.send(
-        `Play \`${playlist.name}\` playlist (${playlist.songs.length} songs).\nRequested by: ${song.user}\nNow playing \`${song.name}\` - \`${song.formattedDuration}\`\n${status(queue)}`
-    ))
-    .on("addList", (message, queue, playlist) => message.channel.send(
-        `Added \`${playlist.name}\` playlist (${playlist.songs.length} songs) to queue\n${status(queue)}`
-    ))
-    // DisTubeOptions.searchSongs = true
-    .on("searchResult", (message, result) => {
-        let i = 0;
-        message.channel.send(`**Choose an option from below**\n${result.map(song => `**${++i}**. ${song.name} - \`${song.formattedDuration}\``).join("\n")}\n*Enter anything else or wait 60 seconds to cancel*`);
+fs.readdir("./commands/", (e, f) => {
+    if(e) return console.error(e);
+    f.forEach(file => {
+        if(!file.endsWith(".js")) return
+        console.log(`${file} has been loaded`)
+        let cmd = require(`./commands/${file}`);
+        let cmdName = cmd.config.name;
+        client.commands.set(cmdName, cmd)
+        cmd.config.aliases.forEach(alias => {
+            client.aliases.set(alias, cmdName);
+        })
     })
-    // DisTubeOptions.searchSongs = true
-    .on("searchCancel", (message) => message.channel.send(`Searching canceled`))
-    .on("error", (message, e) => {
-        console.error(e)
-        message.channel.send("An error encountered: " + e);
-    });
+})
 
-client.login(token)
+
+const queue = new Map();
+
+client.on("ready", () => {
+    console.log("bot ready")
+})
+
+client.on("message", async(message) => {
+    const prefix = '*';
+
+    const serverQueue = queue.get(message.guild.id);
+    const args = message.content.slice(prefix.length).trim().split(/ +/g)
+    const command = args.shift().toLowerCase();
+
+    const cmd = client.commands.get(command) || client.commands.get(client.aliases.get(command));
+
+    if(!cmd) return
+
+    try {
+        cmd.run(client, message, args, queue, searcher);
+    }catch (err){
+        return console.error(err)
+    }
+        
+})
+ 
+client.login("ODg4MDU5Mjk3NzkwMDYyNjcy.YUNLqw.l-TYNnFTYdbxuSQPxaVmHWYi2CE")
